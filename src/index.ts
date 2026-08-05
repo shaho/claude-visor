@@ -18,8 +18,9 @@ export async function main(deps: Deps): Promise<string> {
   }
   const payload = parsePayload(raw);
   const columns = Number(deps.env["COLUMNS"]) || 80;
+  const now = deps.now ? deps.now() : new Date();
   try {
-    return renderMainLine(payload, columns);
+    return renderMainLine(payload, columns, now);
   } catch {
     return "";
   }
