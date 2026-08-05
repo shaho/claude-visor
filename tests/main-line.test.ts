@@ -6,8 +6,14 @@ import { bold, dim, fg, palette, separator } from "../src/render/style.ts";
 const fixture = (name: string) =>
   Bun.file(new URL(`fixtures/${name}.json`, import.meta.url)).text();
 
+const NOW = 1_800_000_000;
+
 function deps(stdin: string | Promise<string>, env: Deps["env"] = {}): Deps {
-  return { readStdin: () => Promise.resolve(stdin), env };
+  return {
+    readStdin: () => Promise.resolve(stdin),
+    env,
+    now: () => new Date(NOW * 1000),
+  };
 }
 
 describe("main line end to end", () => {
@@ -35,9 +41,41 @@ describe("main line end to end", () => {
   });
 
   test("null used_percentage renders empty bar and –%", async () => {
-    const out = await main(deps(await fixture("main-early"), { COLUMNS: "80" }));
+    const out = await main(
+      deps(await fixture("main-early"), { COLUMNS: "80" }),
+    );
     expect(out).toContain(`${emptyBar(8)} ${dim("–%")}${dim("/200k")}`);
     expect(out).not.toContain("null");
+  });
+});
+
+describe("pace segments", () => {
+  test("both windows render used %, delta, and 5h countdown", async () => {
+    const out = await main(deps(await fixture("main-pace"), { COLUMNS: "80" }));
+    const fiveHour = `5h 62% ${fg(palette.red, "⇡7%")}${dim(" ⟳2h14m")}`;
+    const sevenDay = `7d 31% ${fg(palette.green, "⇣12%")}`;
+    expect(out).toContain(fiveHour + separator + sevenDay);
+  });
+
+  test("7d segment carries no countdown", async () => {
+    const out = await main(deps(await fixture("main-pace"), { COLUMNS: "80" }));
+    expect(out.split(separator).at(-1)).toBe(
+      `7d 31% ${fg(palette.green, "⇣12%")}`,
+    );
+  });
+
+  test("only five_hour present renders 5h alone", async () => {
+    const out = await main(
+      deps(await fixture("main-pace-5h-only"), { COLUMNS: "80" }),
+    );
+    expect(out).toContain("5h 12%");
+    expect(out).not.toContain("7d");
+  });
+
+  test("payload without rate_limits renders no pace segments", async () => {
+    const out = await main(deps(await fixture("main-43"), { COLUMNS: "80" }));
+    expect(out).not.toContain("5h ");
+    expect(out).not.toContain("7d ");
   });
 });
 
