@@ -1,0 +1,10 @@
+{
+  "session_id": "abc123",
+  "model": { "id": "claude-fable-5", "display_name": "Fable 5" },
+  "context_window": {
+    "used_percentage": null,
+    "remaining_percentage": null,
+    "context_window_size": 200000,
+    "current_usage": null
+  }
+}
