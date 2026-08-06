@@ -24,18 +24,12 @@ export async function main(deps: Deps): Promise<string> {
   const payload = parsePayload(raw);
   const now = deps.now ? deps.now() : new Date();
   const style = makeStyle(deps.env);
-  if (isSubagentPayload(payload)) {
-    try {
-      return renderAgentRows(payload, style, now);
-    } catch {
-      return "";
-    }
-  }
-  const columns = Number(deps.env["COLUMNS"]) || 80;
-  const branch = deps.exec
-    ? await gitBranch(deps.exec, payload.workspace?.current_dir)
-    : undefined;
   try {
+    if (isSubagentPayload(payload)) return renderAgentRows(payload, style, now);
+    const branch = deps.exec
+      ? await gitBranch(deps.exec, payload.workspace?.current_dir)
+      : undefined;
+    const columns = Number(deps.env["COLUMNS"]) || 80;
     return renderMainLine(payload, columns, now, branch, style);
   } catch {
     return "";

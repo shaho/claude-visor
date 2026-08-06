@@ -1,6 +1,6 @@
 import type { AgentTask, SubagentPayload } from "../stdin.ts";
 import { bar, thresholdColor } from "./bar.ts";
-import { palette, visibleLength, type Rgb, type Style } from "./style.ts";
+import { palette, visibleLength, type Style } from "./style.ts";
 
 const ROW_BAR_CELLS = 6;
 const MIN_NAME = 8;
@@ -16,7 +16,7 @@ export function renderAgentRows(
   return payload.tasks
     .map((task) => {
       try {
-        if (typeof task?.id !== "string" || task.id === "") return undefined;
+        if (!task?.id || typeof task.id !== "string") return undefined;
         const content = row(task, columns, style, now.getTime());
         return JSON.stringify({ id: task.id, content });
       } catch {
@@ -55,18 +55,16 @@ function row(
   const name = typeof task.name === "string" ? task.name : "";
   const fits = (s: string) => visibleLength(s) <= columns;
 
-  let last = "";
   for (const level of LEVELS) {
-    for (
-      let len = Math.max(name.length, level.minName);
-      len >= level.minName;
-      len--
-    ) {
-      last = build(task, truncate(name, len, style), level, style, nowMs);
-      if (fits(last)) return last;
+    const full = build(task, name, level, style, nowMs);
+    if (fits(full)) return full;
+    const len = name.length - (visibleLength(full) - columns);
+    if (len >= level.minName) {
+      const s = build(task, truncate(name, len, style), level, style, nowMs);
+      if (fits(s)) return s;
     }
   }
-  return last;
+  return build(task, truncate(name, 1, style), LEVELS.at(-1)!, style, nowMs);
 }
 
 function truncate(name: string, len: number, style: Style): string {
@@ -96,21 +94,18 @@ function build(
   return segments.filter((s) => s !== undefined).join(style.sep);
 }
 
-const STATUS_STYLES: Record<string, { glyph: keyof Style["glyphs"]; color?: Rgb }> = {
-  running: { glyph: "running", color: palette.yellow },
-  completed: { glyph: "completed", color: palette.green },
-  failed: { glyph: "failed", color: palette.red },
-  pending: { glyph: "pending" },
-  queued: { glyph: "pending" },
-  paused: { glyph: "paused" },
-  killed: { glyph: "killed" },
-};
-
 function statusGlyph(status: string | undefined, style: Style): string {
-  const known = STATUS_STYLES[status ?? ""];
-  if (!known) return style.dim(String(status ?? "?"));
-  const glyph = style.glyphs[known.glyph];
-  return known.color ? style.fg(known.color, glyph) : style.dim(glyph);
+  const g = style.glyphs;
+  const known: Record<string, string> = {
+    running: style.fg(palette.yellow, g.running),
+    completed: style.fg(palette.green, g.completed),
+    failed: style.fg(palette.red, g.failed),
+    pending: style.dim(g.pending),
+    queued: style.dim(g.pending),
+    paused: style.dim(g.paused),
+    killed: style.dim(g.killed),
+  };
+  return known[status ?? ""] ?? style.dim(status ?? "?");
 }
 
 function gauge(task: AgentTask, style: Style): string {
