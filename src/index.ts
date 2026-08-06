@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 import { gitBranch, type Exec } from "./git.ts";
 import { isSubagentPayload, parsePayload } from "./stdin.ts";
@@ -12,6 +13,7 @@ export interface Deps {
   env: Record<string, string | undefined>;
   exec?: Exec;
   now?: () => Date;
+  fileExists?: (path: string) => boolean;
 }
 
 export async function main(deps: Deps): Promise<string> {
@@ -31,7 +33,13 @@ export async function main(deps: Deps): Promise<string> {
       ? await gitBranch(deps.exec, payload.workspace?.current_dir)
       : undefined;
     const columns = Number(deps.env["COLUMNS"]) || 80;
-    return renderMainLine(payload, columns, now, branch, style);
+    // The hook owns the release check; the render path only reads the marker.
+    const dataDir =
+      deps.env["CLAUDE_PLUGIN_DATA"] ??
+      `${deps.env["HOME"]}/.claude/plugins/data/claude-visor-claude-visor`;
+    const updateAvailable =
+      deps.fileExists?.(`${dataDir}/update-available`) ?? false;
+    return renderMainLine(payload, columns, now, branch, style, updateAvailable);
   } catch {
     return "";
   }
@@ -50,6 +58,7 @@ if (import.meta.main) {
     env: process.env,
     exec,
     now: () => new Date(),
+    fileExists: existsSync,
   }).then(
     (output) => {
       if (output) console.log(output);
