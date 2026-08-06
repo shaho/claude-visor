@@ -16,7 +16,7 @@ const payloadWith = async (transcript: string) => {
   return JSON.stringify({ ...base, transcript_path: join(FIX, transcript) });
 };
 
-function deps(stdin: string, env: Deps["env"] = {}, fs: FsLike = nodeFs): Deps {
+function deps(stdin: string, env: Deps["env"] = {}, fs: Deps["fs"] = nodeFs): Deps {
   return {
     readStdin: () => Promise.resolve(stdin),
     env: { COLORTERM: "truecolor", COLUMNS: "120", ...env },
@@ -75,11 +75,13 @@ describe("tool-activity line end to end", () => {
 
   test("kill switch does zero transcript I/O", async () => {
     let calls = 0;
-    const spy: FsLike = {
+    const spy: Deps["fs"] = {
       statSync: (p) => (calls++, nodeFs.statSync(p)),
       openSync: (p, f) => (calls++, nodeFs.openSync(p, f)),
       readSync: nodeFs.readSync,
       closeSync: nodeFs.closeSync,
+      readdirSync: (p) => (calls++, nodeFs.readdirSync(p) as string[]),
+      readFileSync: (p, e) => (calls++, nodeFs.readFileSync(p, e)),
     };
     const payload = await payloadWith("turn-active.jsonl");
     await main(deps(payload, { CLAUDE_VISOR_NO_TRANSCRIPT: "1" }, spy));

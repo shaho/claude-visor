@@ -66,6 +66,8 @@ config.env
 
 .agents
 .claude
+# test fixtures mirror the real ~/.claude layout — keep them tracked
+!tests/fixtures/todo-home/.claude
 claude.md
 agents.md
 .scratch

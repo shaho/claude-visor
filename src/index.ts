@@ -6,7 +6,9 @@ import { isSubagentPayload, parsePayload } from "./stdin.ts";
 import { renderAgentRows } from "./render/agent-rows.ts";
 import { renderMainLine } from "./render/main-line.ts";
 import { renderToolLine } from "./render/tool-line.ts";
+import { renderTodoLine } from "./render/todo-line.ts";
 import { makeStyle } from "./render/style.ts";
+import { readTodos, type TodoFs } from "./todos.ts";
 import { turnTools, type FsLike } from "./transcript.ts";
 import { VERSION } from "./version.ts";
 
@@ -16,7 +18,7 @@ export interface Deps {
   exec?: Exec;
   now?: () => Date;
   fileExists?: (path: string) => boolean;
-  fs?: FsLike;
+  fs?: FsLike & TodoFs;
 }
 
 export async function main(deps: Deps): Promise<string> {
@@ -47,17 +49,28 @@ export async function main(deps: Deps): Promise<string> {
     ];
     // v2 lines are strictly additive: the kill switch is checked before any
     // transcript I/O, and any failure leaves line 1 exactly as v0 rendered it.
-    if (
-      deps.fs &&
-      payload.transcript_path &&
-      deps.env["CLAUDE_VISOR_NO_TRANSCRIPT"] !== "1"
-    ) {
+    if (deps.fs && deps.env["CLAUDE_VISOR_NO_TRANSCRIPT"] !== "1") {
       try {
-        const activity = turnTools(deps.fs, payload.transcript_path);
+        const activity = payload.transcript_path
+          ? turnTools(deps.fs, payload.transcript_path)
+          : null;
         const toolLine = activity && renderToolLine(activity, columns, style);
         if (toolLine) lines.push(toolLine);
       } catch {
         // silent degradation — never touch line 1
+      }
+      try {
+        const todos =
+          payload.session_id && deps.env["HOME"]
+            ? readTodos(
+                deps.fs,
+                `${deps.env["HOME"]}/.claude/tasks/${payload.session_id}`,
+              )
+            : null;
+        const todoLine = todos && renderTodoLine(todos, columns, style);
+        if (todoLine) lines.push(todoLine);
+      } catch {
+        // silent degradation — never touch the lines above
       }
     }
     return lines.join("\n");
