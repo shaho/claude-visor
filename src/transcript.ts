@@ -51,12 +51,9 @@ export function agentCurrentTool(
 }
 
 function tailEntries(fs: FsLike, path: string): unknown[] | null {
-  let buf: string;
-  let partialFirst: boolean;
   try {
     const size = fs.statSync(path).size;
     const start = Math.max(0, size - TAIL_WINDOW);
-    partialFirst = start > 0;
     const b = Buffer.alloc(size - start);
     const fd = fs.openSync(path, "r");
     try {
@@ -64,22 +61,21 @@ function tailEntries(fs: FsLike, path: string): unknown[] | null {
     } finally {
       fs.closeSync(fd);
     }
-    buf = b.toString("utf8");
+    const lines = b.toString("utf8").split("\n");
+    if (start > 0) lines.shift();
+    const entries: unknown[] = [];
+    for (const line of lines) {
+      if (!line) continue;
+      try {
+        entries.push(JSON.parse(line));
+      } catch {
+        // malformed line — skip, never throw
+      }
+    }
+    return entries;
   } catch {
     return null;
   }
-  const lines = buf.split("\n");
-  if (partialFirst) lines.shift();
-  const entries: unknown[] = [];
-  for (const line of lines) {
-    if (!line) continue;
-    try {
-      entries.push(JSON.parse(line));
-    } catch {
-      // malformed line — skip, never throw
-    }
-  }
-  return entries;
 }
 
 // Entries after the last human prompt; the whole window when none is present
@@ -99,36 +95,32 @@ function currentTurn(entries: unknown[]): unknown[] {
 
 function deriveTools(entries: unknown[]): ToolActivity {
   const open = new Map<string, RunningTool>();
-  const completedAt = new Map<string, number>(); // name → last completion index
-  const counts = new Map<string, number>();
-  entries.forEach((entry, i) => {
+  const counts = new Map<string, number>(); // insertion order = completion recency
+  for (const entry of entries) {
     const e = entry as Record<string, any>;
     const content = e?.message?.content;
-    if (!Array.isArray(content)) return;
+    if (!Array.isArray(content)) continue;
     for (const block of content) {
-      try {
-        if (e.type === "assistant" && block?.type === "tool_use") {
-          if (typeof block.id === "string")
-            open.set(block.id, {
-              name: String(block.name ?? "?"),
-              label: toolLabel(block.input),
-            });
-        } else if (e.type === "user" && block?.type === "tool_result") {
-          const started = open.get(block.tool_use_id);
-          if (started) {
-            open.delete(block.tool_use_id);
-            counts.set(started.name, (counts.get(started.name) ?? 0) + 1);
-            completedAt.set(started.name, i);
-          }
+      if (e.type === "assistant" && block?.type === "tool_use") {
+        if (typeof block.id === "string")
+          open.set(block.id, {
+            name: String(block.name ?? "?"),
+            label: toolLabel(block.input),
+          });
+      } else if (e.type === "user" && block?.type === "tool_result") {
+        const started = open.get(block.tool_use_id);
+        if (started) {
+          open.delete(block.tool_use_id);
+          const n = (counts.get(started.name) ?? 0) + 1;
+          counts.delete(started.name); // re-insert so the Map ends most-recent-last
+          counts.set(started.name, n);
         }
-      } catch {
-        // one bad block never takes down the rest
       }
     }
-  });
-  const completed = [...counts.entries()]
+  }
+  const completed = [...counts]
     .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => (completedAt.get(b.name) ?? 0) - (completedAt.get(a.name) ?? 0));
+    .reverse();
   return { running: [...open.values()], completed };
 }
 
