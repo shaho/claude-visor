@@ -4,8 +4,16 @@ export interface RateLimitWindow {
 }
 
 export interface MainPayload {
+  session_id?: string;
   model?: { display_name?: string };
   effort?: { level?: string };
+  thinking?: { enabled?: boolean };
+  workspace?: {
+    current_dir?: string;
+    git_worktree?: string;
+    repo?: { name?: string };
+  };
+  cost?: { total_cost_usd?: number };
   context_window?: {
     used_percentage?: number | null;
     context_window_size?: number;
@@ -29,6 +37,10 @@ export function parsePayload(raw: string): MainPayload {
   const o = json as Record<string, unknown>;
   const payload: MainPayload = {};
 
+  if (typeof o["session_id"] === "string") {
+    payload.session_id = o["session_id"];
+  }
+
   const model = asObject(o["model"]);
   if (typeof model?.["display_name"] === "string") {
     payload.model = { display_name: model["display_name"] };
@@ -37,6 +49,33 @@ export function parsePayload(raw: string): MainPayload {
   const effort = asObject(o["effort"]);
   if (typeof effort?.["level"] === "string") {
     payload.effort = { level: effort["level"] };
+  }
+
+  const thinking = asObject(o["thinking"]);
+  if (typeof thinking?.["enabled"] === "boolean") {
+    payload.thinking = { enabled: thinking["enabled"] };
+  }
+
+  const workspace = asObject(o["workspace"]);
+  if (workspace) {
+    const repo = asObject(workspace["repo"]);
+    payload.workspace = {
+      current_dir:
+        typeof workspace["current_dir"] === "string"
+          ? workspace["current_dir"]
+          : undefined,
+      git_worktree:
+        typeof workspace["git_worktree"] === "string"
+          ? workspace["git_worktree"]
+          : undefined,
+      repo:
+        typeof repo?.["name"] === "string" ? { name: repo["name"] } : undefined,
+    };
+  }
+
+  const cost = asObject(o["cost"]);
+  if (typeof cost?.["total_cost_usd"] === "number") {
+    payload.cost = { total_cost_usd: cost["total_cost_usd"] };
   }
 
   const ctx = asObject(o["context_window"]);
