@@ -24,15 +24,37 @@ export interface MainPayload {
   };
 }
 
+export interface AgentTask {
+  id?: string;
+  name?: string;
+  type?: string;
+  status?: string;
+  model?: string;
+  contextWindowSize?: number;
+  tokenCount?: number;
+  startTime?: number | string;
+}
+
+export interface SubagentPayload {
+  columns?: number;
+  tasks: AgentTask[];
+}
+
+export type Payload = MainPayload | SubagentPayload;
+
+// A tasks array is what distinguishes the subagent surface (§8: one binary,
+// two modes, detected from the payload shape).
+export function isSubagentPayload(p: Payload): p is SubagentPayload {
+  return Array.isArray((p as SubagentPayload).tasks);
+}
+
 // The type is an assertion, not a guarantee: every segment renders inside its
 // own guard and type-checks what it prints, so a mistyped field drops that
 // segment instead of crashing the line.
-export function parsePayload(raw: string): MainPayload {
+export function parsePayload(raw: string): Payload {
   try {
     const json: unknown = JSON.parse(raw);
-    return typeof json === "object" && json !== null
-      ? (json as MainPayload)
-      : {};
+    return typeof json === "object" && json !== null ? (json as Payload) : {};
   } catch {
     return {};
   }

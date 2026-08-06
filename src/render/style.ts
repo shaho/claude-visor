@@ -21,6 +21,14 @@ export interface Glyphs {
   thinking: string;
   sep: string;
   noPct: string;
+  running: string;
+  completed: string;
+  failed: string;
+  pending: string;
+  paused: string;
+  killed: string;
+  naDash: string;
+  ellipsis: string;
 }
 
 const NERD: Glyphs = {
@@ -35,6 +43,14 @@ const NERD: Glyphs = {
   thinking: "☰",
   sep: " │ ",
   noPct: "–%",
+  running: "◐",
+  completed: "✓",
+  failed: "✗",
+  pending: "◌",
+  paused: "⏸",
+  killed: "⊘",
+  naDash: "─",
+  ellipsis: "…",
 };
 
 const ASCII: Glyphs = {
@@ -49,6 +65,14 @@ const ASCII: Glyphs = {
   thinking: "=",
   sep: " | ",
   noPct: "-%",
+  running: "*",
+  completed: "+",
+  failed: "x",
+  pending: ".",
+  paused: "~",
+  killed: "-",
+  naDash: "-",
+  ellipsis: "..",
 };
 
 export interface Style {

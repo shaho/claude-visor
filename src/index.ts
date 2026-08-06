@@ -1,7 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gitBranch, type Exec } from "./git.ts";
-import { parsePayload } from "./stdin.ts";
+import { isSubagentPayload, parsePayload } from "./stdin.ts";
+import { renderAgentRows } from "./render/agent-rows.ts";
 import { renderMainLine } from "./render/main-line.ts";
 import { makeStyle } from "./render/style.ts";
 
@@ -21,13 +22,21 @@ export async function main(deps: Deps): Promise<string> {
     return "";
   }
   const payload = parsePayload(raw);
-  const columns = Number(deps.env["COLUMNS"]) || 80;
   const now = deps.now ? deps.now() : new Date();
+  const style = makeStyle(deps.env);
+  if (isSubagentPayload(payload)) {
+    try {
+      return renderAgentRows(payload, style, now);
+    } catch {
+      return "";
+    }
+  }
+  const columns = Number(deps.env["COLUMNS"]) || 80;
   const branch = deps.exec
     ? await gitBranch(deps.exec, payload.workspace?.current_dir)
     : undefined;
   try {
-    return renderMainLine(payload, columns, now, branch, makeStyle(deps.env));
+    return renderMainLine(payload, columns, now, branch, style);
   } catch {
     return "";
   }

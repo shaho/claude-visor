@@ -1,0 +1,54 @@
+{
+  "session_id": "abc123",
+  "cwd": "/Users/dev/claude-visor",
+  "columns": 100,
+  "tasks": [
+    {
+      "id": "task-1",
+      "name": "Explore",
+      "type": "local_agent",
+      "status": "running",
+      "model": "claude-haiku-4-5-20251001",
+      "contextWindowSize": 200000,
+      "tokenCount": 68000,
+      "tokenSamples": [61000, 64500, 68000],
+      "startTime": 1799999865000
+    },
+    {
+      "id": "task-2",
+      "name": "Bash",
+      "type": "local_bash",
+      "status": "running",
+      "tokenCount": 800,
+      "startTime": 1799999959000
+    },
+    {
+      "id": "task-3",
+      "name": "code-reviewer",
+      "type": "local_workflow",
+      "status": "completed",
+      "model": "claude-sonnet-5",
+      "contextWindowSize": 200000,
+      "tokenCount": 142000,
+      "startTime": 1799999638000
+    },
+    {
+      "id": "task-4",
+      "name": "remote-fixer",
+      "type": "remote_agent",
+      "status": "failed",
+      "model": "claude-fable-5",
+      "contextWindowSize": 200000,
+      "tokenCount": 12400,
+      "startTime": 1799999990000
+    },
+    {
+      "id": "task-5",
+      "name": "teammate",
+      "type": "in_process_teammate",
+      "status": "queued",
+      "tokenCount": 0,
+      "startTime": "2027-01-15T07:57:55.000Z"
+    }
+  ]
+}
