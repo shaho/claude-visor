@@ -1,4 +1,5 @@
 import type { AgentTask, SubagentPayload } from "../stdin.ts";
+import type { RunningTool } from "../transcript.ts";
 import { bar, thresholdColor } from "./bar.ts";
 import { palette, visibleLength, type Style } from "./style.ts";
 
@@ -6,18 +7,25 @@ const ROW_BAR_CELLS = 6;
 const MIN_NAME = 8;
 
 // One {"id","content"} JSON line per task (§4.2); a task we can't render is
-// skipped, which leaves Claude Code's default row for it.
+// skipped, which leaves Claude Code's default row for it. `agentTool` is the
+// v2 sidecar join (§5.3) — absent (kill switch, no transcript_path) or
+// returning null, every row renders exactly as v0.
 export function renderAgentRows(
   payload: SubagentPayload,
   style: Style,
   now: Date,
+  agentTool?: (id: string) => RunningTool | null,
 ): string {
   const columns = typeof payload.columns === "number" ? payload.columns : 80;
   return payload.tasks
     .map((task) => {
       try {
         if (!task?.id || typeof task.id !== "string") return undefined;
-        const content = row(task, columns, style, now.getTime());
+        // Fragment only while the official status is running — append-only
+        // sidecars can never show stale activity for finished tasks.
+        const tool =
+          task.status === "running" && agentTool ? agentTool(task.id) : null;
+        const content = row(task, columns, style, now.getTime(), tool);
         return JSON.stringify({ id: task.id, content });
       } catch {
         return undefined;
@@ -51,9 +59,21 @@ function row(
   columns: number,
   style: Style,
   nowMs: number,
+  tool: RunningTool | null = null,
 ): string {
   const name = typeof task.name === "string" ? task.name : "";
   const fits = (s: string) => visibleLength(s) <= columns;
+
+  // §5.3: the fragment is the last segment and drops before any v0 segment.
+  if (tool) {
+    const g = style.glyphs;
+    const fragment =
+      style.fg(palette.yellow, g.running) +
+      ` ${style.bold(tool.name)}` +
+      (tool.label ? style.dim(` ${tool.label}`) : "");
+    const full = build(task, name, LEVELS[0]!, style, nowMs) + style.sep + fragment;
+    if (fits(full)) return full;
+  }
 
   for (const level of LEVELS) {
     const full = build(task, name, level, style, nowMs);

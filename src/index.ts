@@ -9,7 +9,7 @@ import { renderToolLine } from "./render/tool-line.ts";
 import { renderTodoLine } from "./render/todo-line.ts";
 import { makeStyle } from "./render/style.ts";
 import { readTodos, type TodoFs } from "./todos.ts";
-import { turnTools, type FsLike } from "./transcript.ts";
+import { agentCurrentTool, turnTools, type FsLike } from "./transcript.ts";
 import { VERSION } from "./version.ts";
 
 export interface Deps {
@@ -33,7 +33,21 @@ export async function main(deps: Deps): Promise<string> {
   const now = deps.now ? deps.now() : new Date();
   const style = makeStyle(deps.env);
   try {
-    if (isSubagentPayload(payload)) return renderAgentRows(payload, style, now);
+    if (isSubagentPayload(payload)) {
+      const fs = deps.fs;
+      const sidecarDir =
+        fs &&
+        payload.transcript_path &&
+        deps.env["CLAUDE_VISOR_NO_TRANSCRIPT"] !== "1"
+          ? `${payload.transcript_path.replace(/\.jsonl$/, "")}/subagents`
+          : undefined;
+      const agentTool =
+        fs && sidecarDir
+          ? (id: string) =>
+              agentCurrentTool(fs, `${sidecarDir}/agent-${id}.jsonl`)
+          : undefined;
+      return renderAgentRows(payload, style, now, agentTool);
+    }
     const branch = deps.exec
       ? await gitBranch(deps.exec, payload.workspace?.current_dir)
       : undefined;
