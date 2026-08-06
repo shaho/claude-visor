@@ -67,3 +67,15 @@ jobs:
           case "$GITHUB_REF_NAME" in v0.0.*) PRERELEASE="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" artifacts/*.tar.gz artifacts/SHA256SUMS \
             --title "$GITHUB_REF_NAME" --generate-notes $PRERELEASE
+
+      - name: Sync bundled checksums with the release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          mkdir -p checksums
+          cp artifacts/SHA256SUMS checksums/SHA256SUMS
+          git add checksums/SHA256SUMS
+          git commit -m "Sync SHA256SUMS for $GITHUB_REF_NAME" || exit 0
+          git push origin main

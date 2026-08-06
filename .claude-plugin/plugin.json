@@ -1,0 +1,6 @@
+{
+  "name": "claude-visor",
+  "description": "HUD for Claude Code: dense main statusline plus per-agent gauge rows, rendered from official stdin data only.",
+  "version": "0.0.1",
+  "author": { "name": "Shaho Toofani" }
+}

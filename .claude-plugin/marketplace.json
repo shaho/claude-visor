@@ -1,0 +1,11 @@
+{
+  "name": "claude-visor",
+  "owner": { "name": "Shaho Toofani" },
+  "plugins": [
+    {
+      "name": "claude-visor",
+      "source": "./",
+      "description": "HUD for Claude Code: dense main statusline plus per-agent gauge rows, rendered from official stdin data only."
+    }
+  ]
+}
