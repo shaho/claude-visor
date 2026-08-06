@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { gitBranch, type Exec } from "./git.ts";
 import { parsePayload } from "./stdin.ts";
 import { renderMainLine } from "./render/main-line.ts";
+import { makeStyle } from "./render/style.ts";
 
 export interface Deps {
   readStdin: () => Promise<string>;
@@ -26,7 +27,7 @@ export async function main(deps: Deps): Promise<string> {
     ? await gitBranch(deps.exec, payload.workspace?.current_dir)
     : undefined;
   try {
-    return renderMainLine(payload, columns, now, branch);
+    return renderMainLine(payload, columns, now, branch, makeStyle(deps.env));
   } catch {
     return "";
   }
