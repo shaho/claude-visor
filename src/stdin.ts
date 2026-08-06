@@ -38,6 +38,7 @@ export interface AgentTask {
 
 export interface SubagentPayload {
   columns?: number;
+  transcript_path?: string;
   tasks: AgentTask[];
 }
 
