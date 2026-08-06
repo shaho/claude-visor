@@ -5,6 +5,7 @@ export interface RateLimitWindow {
 
 export interface MainPayload {
   session_id?: string;
+  transcript_path?: string;
   model?: { display_name?: string };
   effort?: { level?: string };
   thinking?: { enabled?: boolean };
