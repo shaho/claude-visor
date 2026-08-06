@@ -1,0 +1,8 @@
+{not json at all
+{"type":"mode","mode":"normal","sessionId":"11111111-2222-3333-4444-555555555555"}
+{"type":"mystery-type","message":{"content":"string not array"}}
+{"parentUuid":null,"isSidechain":false,"uuid":"00000000-0000-0000-0000-000000000032","timestamp":"2026-08-06T10:00:32.000Z","sessionId":"11111111-2222-3333-4444-555555555555","userType":"external","entrypoint":"cli","cwd":"/Users/redacted/project","version":"2.1.223","gitBranch":"main","type":"assistant","slug":null,"requestId":"req_toolu_c1","message":{"model":"claude-fable-5","role":"assistant","content":[{"type":"tool_use","id":"toolu_c1","name":"Edit","input":{"file_path":"/Users/redacted/project/a/b.ts","old_string":"x","new_string":"y"}}]}}
+{"parentUuid":null,"isSidechain":false,"uuid":"00000000-0000-0000-0000-000000000033","timestamp":"2026-08-06T10:00:33.000Z","sessionId":"11111111-2222-3333-4444-555555555555","userType":"external","entrypoint":"cli","cwd":"/Users/redacted/project","version":"2.1.223","gitBranch":"main","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_c1","content":"<persisted-output>\nOutput too large (88.3KB). Full output saved to: /redacted/tool-results/toolu_c1.txt\n\nPreview (first 2KB): redacted"}]},"toolUseResult":{"success":true}}
+{"parentUuid":null,"isSidechain":false,"uuid":"00000000-0000-0000-0000-000000000034","timestamp":"2026-08-06T10:00:34.000Z","sessionId":"11111111-2222-3333-4444-555555555555","userType":"external","entrypoint":"cli","cwd":"/Users/redacted/project","version":"2.1.223","gitBranch":"main","type":"assistant","message":{"role":"assistant","content":[{"type":"banana"}]}}
+{"type":"user","message":{"content":"string not array"}}
+
