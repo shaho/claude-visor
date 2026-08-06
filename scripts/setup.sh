@@ -58,4 +58,5 @@ with open(path, "w") as f:
 PY
 
 echo "statusLine now points at $BIN_PATH"
+bash "$PLUGIN_ROOT/scripts/doctor.sh"
 echo "claude-visor setup complete — the main line renders on the next statusline refresh."
