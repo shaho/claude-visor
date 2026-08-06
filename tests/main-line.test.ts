@@ -226,6 +226,62 @@ describe("segment isolation", () => {
   });
 });
 
+describe("update marker", () => {
+  test("dim ↑ renders exactly when the marker file exists", async () => {
+    const raw = await fixture("main-43");
+    const withMarker = await main({
+      ...deps(raw, { COLUMNS: "80", HOME: "/Users/dev" }),
+      fileExists: () => true,
+    });
+    expect(withMarker).toContain(st.dim(st.glyphs.update));
+    const without = await main({
+      ...deps(raw, { COLUMNS: "80", HOME: "/Users/dev" }),
+      fileExists: () => false,
+    });
+    expect(without).not.toContain(st.glyphs.update);
+  });
+
+  test("marker path is the data dir; CLAUDE_PLUGIN_DATA overrides", async () => {
+    const paths: string[] = [];
+    const spy = (p: string) => {
+      paths.push(p);
+      return false;
+    };
+    const raw = await fixture("main-43");
+    await main({
+      ...deps(raw, { COLUMNS: "80", HOME: "/Users/dev" }),
+      fileExists: spy,
+    });
+    await main({
+      ...deps(raw, { COLUMNS: "80", CLAUDE_PLUGIN_DATA: "/data/x" }),
+      fileExists: spy,
+    });
+    expect(paths).toEqual([
+      "/Users/dev/.claude/plugins/data/claude-visor-claude-visor/update-available",
+      "/data/x/update-available",
+    ]);
+  });
+
+  test("subagent surface never reads the marker", async () => {
+    let called = false;
+    await main({
+      ...deps(await fixture("agents")),
+      fileExists: () => ((called = true), false),
+    });
+    expect(called).toBe(false);
+  });
+
+  test("render path contains no network calls", async () => {
+    const glob = new Bun.Glob("**/*.ts");
+    for await (const file of glob.scan(new URL("../src/", import.meta.url).pathname)) {
+      const source = await Bun.file(
+        new URL(`../src/${file}`, import.meta.url),
+      ).text();
+      expect(source).not.toMatch(/fetch\(|XMLHttpRequest|WebSocket|node:http|node:net|curl/);
+    }
+  });
+});
+
 describe("kill switch", () => {
   test("CLAUDE_VISOR_DISABLE=1 exits empty without reading stdin", async () => {
     let stdinRead = false;

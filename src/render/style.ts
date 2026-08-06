@@ -29,6 +29,7 @@ export interface Glyphs {
   killed: string;
   naDash: string;
   ellipsis: string;
+  update: string;
 }
 
 const NERD: Glyphs = {
@@ -51,6 +52,7 @@ const NERD: Glyphs = {
   killed: "⊘",
   naDash: "─",
   ellipsis: "…",
+  update: "↑",
 };
 
 const ASCII: Glyphs = {
@@ -73,6 +75,7 @@ const ASCII: Glyphs = {
   killed: "-",
   naDash: "-",
   ellipsis: "..",
+  update: "^",
 };
 
 export interface Style {

@@ -20,6 +20,7 @@ export function renderMainLine(
   now: Date,
   branch: string | undefined,
   style: Style,
+  updateAvailable = false,
 ): string {
   const nowSeconds = Math.floor(now.getTime() / 1000);
   const maxCells = columns >= 120 ? 14 : 8;
@@ -28,7 +29,7 @@ export function renderMainLine(
   // the platform blanks the whole line on a crash, so never let one escape.
   const build = (cells: number, drops: number): string[] =>
     [
-      guarded(() => modelSegment(payload, style)),
+      guarded(() => modelSegment(payload, style, updateAvailable)),
       guarded(() => contextSegment(payload, cells, style)),
       guarded(() =>
         rateLimitSegment(
@@ -114,7 +115,11 @@ function formatDelta(delta: number, style: Style): string {
     : style.fg(palette.green, `${style.glyphs.down}${Math.abs(delta)}%`);
 }
 
-function modelSegment(payload: MainPayload, style: Style): string | undefined {
+function modelSegment(
+  payload: MainPayload,
+  style: Style,
+  updateAvailable: boolean,
+): string | undefined {
   const name = payload.model?.display_name;
   if (!name) return undefined;
   const color = payload.session_id
@@ -124,7 +129,8 @@ function modelSegment(payload: MainPayload, style: Style): string | undefined {
   return (
     style.bold(style.fg(color, name)) +
     (effort ? style.dim(` ${effort}`) : "") +
-    (payload.thinking?.enabled ? ` ${style.glyphs.thinking}` : "")
+    (payload.thinking?.enabled ? ` ${style.glyphs.thinking}` : "") +
+    (updateAvailable ? ` ${style.dim(style.glyphs.update)}` : "")
   );
 }
 
