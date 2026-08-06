@@ -4,12 +4,14 @@ import { renderMainLine } from "../src/render/main-line.ts";
 import { sessionColor } from "../src/session-color.ts";
 import type { MainPayload } from "../src/stdin.ts";
 import { bar, emptyBar } from "../src/render/bar.ts";
-import { bold, dim, fg, palette, separator } from "../src/render/style.ts";
+import { makeStyle, palette } from "../src/render/style.ts";
 
 const fixture = (name: string) =>
   Bun.file(new URL(`fixtures/${name}.json`, import.meta.url)).text();
 
 const NOW = 1_800_000_000;
+
+const st = makeStyle({ COLORTERM: "truecolor" });
 
 function deps(
   stdin: string | Promise<string>,
@@ -18,7 +20,7 @@ function deps(
 ): Deps {
   return {
     readStdin: () => Promise.resolve(stdin),
-    env,
+    env: { COLORTERM: "truecolor", ...env },
     exec,
     now: () => new Date(NOW * 1000),
   };
@@ -28,31 +30,33 @@ describe("main line end to end", () => {
   test("43% renders green bar with model and effort", async () => {
     const out = await main(deps(await fixture("main-43"), { COLUMNS: "80" }));
     const expected =
-      bold(fg(sessionColor("abc123", ""), "Fable 5")) +
-      dim(" high") +
-      separator +
-      `${bar(43, 8)} ${fg(palette.green, "43%")}${dim("/200k")}`;
+      st.bold(st.fg(sessionColor("abc123", ""), "Fable 5")) +
+      st.dim(" high") +
+      st.sep +
+      `${bar(43, 8, st)} ${st.fg(palette.green, "43%")}${st.dim("/200k")}`;
     expect(out).toBe(expected);
   });
 
   test("75% uses yellow, 90% uses red with 1M window", async () => {
     const at75 = await main(deps(await fixture("main-75"), { COLUMNS: "80" }));
-    expect(at75).toContain(fg(palette.yellow, "75%"));
+    expect(at75).toContain(st.fg(palette.yellow, "75%"));
     const at90 = await main(deps(await fixture("main-90"), { COLUMNS: "80" }));
-    expect(at90).toContain(fg(palette.red, "90%"));
-    expect(at90).toContain(dim("/1M"));
+    expect(at90).toContain(st.fg(palette.red, "90%"));
+    expect(at90).toContain(st.dim("/1M"));
   });
 
   test("wide terminal grows the bar to 14 cells", async () => {
     const out = await main(deps(await fixture("main-43"), { COLUMNS: "120" }));
-    expect(out).toContain(bar(43, 14));
+    expect(out).toContain(bar(43, 14, st));
   });
 
   test("null used_percentage renders empty bar and –%", async () => {
     const out = await main(
       deps(await fixture("main-early"), { COLUMNS: "80" }),
     );
-    expect(out).toContain(`${emptyBar(8)} ${dim("–%")}${dim("/200k")}`);
+    expect(out).toContain(
+      `${emptyBar(8, st)} ${st.dim(st.glyphs.noPct)}${st.dim("/200k")}`,
+    );
     expect(out).not.toContain("null");
   });
 });
@@ -60,15 +64,15 @@ describe("main line end to end", () => {
 describe("pace segments", () => {
   test("both windows render used %, delta, and 5h countdown", async () => {
     const out = await main(deps(await fixture("main-pace"), { COLUMNS: "80" }));
-    const fiveHour = `5h 62% ${fg(palette.red, "⇡7%")}${dim(" ⟳2h14m")}`;
-    const sevenDay = `7d 31% ${fg(palette.green, "⇣12%")}`;
-    expect(out).toContain(fiveHour + separator + sevenDay);
+    const fiveHour = `5h 62% ${st.fg(palette.red, "⇡7%")}${st.dim(" ⟳2h14m")}`;
+    const sevenDay = `7d 31% ${st.fg(palette.green, "⇣12%")}`;
+    expect(out).toContain(fiveHour + st.sep + sevenDay);
   });
 
   test("7d segment carries no countdown", async () => {
     const out = await main(deps(await fixture("main-pace"), { COLUMNS: "80" }));
-    expect(out.split(separator).at(-1)).toBe(
-      `7d 31% ${fg(palette.green, "⇣12%")}`,
+    expect(out.split(st.sep).at(-1)).toBe(
+      `7d 31% ${st.fg(palette.green, "⇣12%")}`,
     );
   });
 
@@ -102,7 +106,7 @@ describe("git segment", () => {
     const out = await main(
       deps(await fixture("main-full"), { COLUMNS: "80" }, exec),
     );
-    expect(out).toContain(dim(" main claude-visor"));
+    expect(out).toContain(st.dim(`${st.glyphs.branch} main claude-visor`));
     expect(calls).toEqual([
       {
         file: "git",
@@ -123,9 +127,9 @@ describe("git segment", () => {
         Promise.reject(new Error("not a git repository")),
       ),
     );
-    expect(out).not.toContain("");
+    expect(out).not.toContain(st.glyphs.branch);
     expect(out).toContain("Fable 5");
-    expect(out).toContain(dim("$4.12"));
+    expect(out).toContain(st.dim("$4.12"));
   });
 
   test("empty branch output drops the segment", async () => {
@@ -133,7 +137,7 @@ describe("git segment", () => {
     const out = await main(
       deps(await fixture("main-full"), { COLUMNS: "80" }, exec),
     );
-    expect(out).not.toContain("");
+    expect(out).not.toContain(st.glyphs.branch);
   });
 
   test("branch without repo name renders branch alone", async () => {
@@ -141,14 +145,14 @@ describe("git segment", () => {
     const out = await main(
       deps(await fixture("main-43"), { COLUMNS: "80" }, exec),
     );
-    expect(out).toContain(dim(" main"));
+    expect(out).toContain(st.dim(`${st.glyphs.branch} main`));
   });
 });
 
 describe("cost segment", () => {
   test("cost renders as $N.NN dim", async () => {
     const out = await main(deps(await fixture("main-full"), { COLUMNS: "80" }));
-    expect(out).toContain(dim("$4.12"));
+    expect(out).toContain(st.dim("$4.12"));
   });
 
   test("absent cost field drops the segment", async () => {
@@ -178,18 +182,20 @@ describe("session color", () => {
 
   test("different sessions or worktrees yield different hues", () => {
     expect(sessionColor("abc123", "")).not.toEqual(sessionColor("def456", ""));
-    expect(sessionColor("abc123", "")).not.toEqual(sessionColor("abc123", "wt"));
+    expect(sessionColor("abc123", "")).not.toEqual(
+      sessionColor("abc123", "wt"),
+    );
   });
 
   test("model segment is colored by the session color", async () => {
     const out = await main(deps(await fixture("main-full"), { COLUMNS: "80" }));
-    expect(out).toContain(fg(sessionColor("abc123", ""), "Fable 5"));
+    expect(out).toContain(st.fg(sessionColor("abc123", ""), "Fable 5"));
   });
 
   test("payload without session_id falls back to the palette model color", async () => {
     const raw = JSON.stringify({ model: { display_name: "Fable 5" } });
     const out = await main(deps(raw, { COLUMNS: "80" }));
-    expect(out).toContain(fg(palette.model, "Fable 5"));
+    expect(out).toContain(st.fg(palette.model, "Fable 5"));
   });
 });
 
@@ -202,7 +208,7 @@ describe("segment isolation", () => {
       },
       context_window: { used_percentage: 43, context_window_size: 200_000 },
     } as MainPayload;
-    const out = renderMainLine(payload, 80, new Date(NOW * 1000));
+    const out = renderMainLine(payload, 80, new Date(NOW * 1000), undefined, st);
     expect(out).toContain("Fable 5");
     expect(out).toContain("43%");
     expect(out).not.toContain("$");
@@ -214,7 +220,9 @@ describe("segment isolation", () => {
         throw new Error("boom");
       },
     });
-    expect(renderMainLine(explosive, 80, new Date(NOW * 1000))).toBe("");
+    expect(
+      renderMainLine(explosive, 80, new Date(NOW * 1000), undefined, st),
+    ).toBe("");
   });
 });
 
