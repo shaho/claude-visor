@@ -80,4 +80,22 @@ if [ "${CLAUDE_VISOR_DISABLE:-}" = "1" ]; then
 fi
 ok "kill switch not set"
 
+# 7. Transcript source (v2 tool/todo lines and agent fragments)
+if [ "${CLAUDE_VISOR_NO_TRANSCRIPT:-}" = "1" ]; then
+  echo "  – CLAUDE_VISOR_NO_TRANSCRIPT=1 is set: tool/todo lines and agent"
+  echo "    fragments are off by choice; unset it to bring them back"
+else
+  PROJ_DIR="$HOME/.claude/projects/$(pwd | sed 's/[^a-zA-Z0-9]/-/g')"
+  LATEST="$(/bin/ls -t "$PROJ_DIR"/*.jsonl 2>/dev/null | head -1 || true)"
+  if [ -z "$LATEST" ]; then
+    echo "  – no transcripts for this project yet; tool/todo lines appear once"
+    echo "    a session has activity"
+  elif [ ! -r "$LATEST" ]; then
+    fail "transcript $LATEST exists but is not readable" \
+      "fix its permissions; transcript-powered lines degrade silently until then"
+  else
+    ok "transcripts readable (latest: $(basename "$LATEST"))"
+  fi
+fi
+
 echo "All checks passed — claude-visor is healthy."

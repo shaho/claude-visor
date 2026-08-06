@@ -5,8 +5,10 @@
 # claude-visor
 
 HUD for Claude Code. It renders both the status line and the subagent panel as
-one single product using JSON data provided by Claude Code to statusline. It
-does not parse any transcript file and does not use the network for rendering.
+one single product using JSON data provided by Claude Code to statusline, plus
+read-only peeks at the session transcript and todo store for live activity. It
+never uses the network for rendering, and anything it can't read it simply
+leaves out.
 
 ```
 Fable 5 high ☰ │ ███░░░░░ 43%/200k │ 5h 62% ⇡9% ⟳2h14m │ 7d 31% ⇣12% │ main claude-visor │ $4.12
@@ -35,6 +37,28 @@ will blank out the entire line if the command fails. If the terminal width
 narrows, the context bar gets narrower first, followed by dropping segments in
 order (repository name, cost, 7-day, git).
 
+## Live activity
+
+Two more lines appear below the main line while there is something to show, read
+from the session transcript and the todo store — never from the network:
+
+```
+◐ Edit auth.ts │ ✓ Read ×3 │ ✓ Bash ×2
+██░░░ 2/5 Fix authentication bug in session middleware
+```
+
+- The tool line shows what Claude is doing right now: running tools first
+  (spinner, name, file or command description), then this turn's completed tools
+  with their counts. It covers the current turn only and disappears when you
+  send the next prompt.
+- The todo line shows a mini progress bar, the done/total count, and the
+  in-progress todo. It hides when there are no todos or all are completed.
+
+An idle session renders exactly the single main line. If the transcript can't be
+read — wrong permissions, a format change in a future Claude Code — the extra
+lines silently disappear and everything else keeps rendering.
+`CLAUDE_VISOR_NO_TRANSCRIPT=1` turns all of this off explicitly.
+
 ## The agent panel
 
 ```
@@ -50,6 +74,11 @@ in use, and the time taken. All the rows have everything found in the panel
 including background bash tasks, workflows, agents that operate remotely, and
 colleagues. If a particular task does not have a model at the time, it is
 displayed as n/a.
+
+While an agent is running, its row also shows the tool it is using at this
+moment (`│ ◐ Read auth.ts` at the end of the row), read from that agent's own
+transcript. The fragment is the first thing dropped on narrow panels, and any
+finished, unreadable, or unknown agent just shows the plain row.
 
 ## Requirements
 
@@ -82,8 +111,9 @@ another setting, it will take effect.
 - `/claude-visor:setup` sets up the binary and initializes the status line.
 - `/claude-visor:doctor` identifies the reasons behind the blank HUD in this
   sequence: version of Claude Code, version of binary, path of the settings
-  file, workspace trust, disableAllHooks, kill switch. It states the first issue
-  and how to resolve it.
+  file, workspace trust, disableAllHooks, kill switch, and whether the session
+  transcript is readable (the source of the tool/todo lines). It states the
+  first issue and how to resolve it.
 - `/claude-visor:uninstall` deletes the statusLine entry (back it up before
   that) and then informs you to complete it with
   `/plugin uninstall claude-visor`.
@@ -109,11 +139,12 @@ characters. ASCII mode converts all non-ASCII characters to normal characters.
 Fable 5 high = | [###----] 43%/200k | 5h 62% ^7% ~2h14m | git main claude-visor | $4.12
 ```
 
-| Variable                 | Effect                                                       |
-| ------------------------ | ------------------------------------------------------------ |
-| `CLAUDE_VISOR_DISABLE=1` | Exit silently before any input or file access, both surfaces |
-| `CLAUDE_VISOR_ASCII=1`   | Plain-text glyphs: `[####----]` bars, `^`/`v` deltas         |
-| `NO_COLOR`               | No color escapes; layout and glyphs unchanged                |
+| Variable                       | Effect                                                       |
+| ------------------------------ | ------------------------------------------------------------ |
+| `CLAUDE_VISOR_DISABLE=1`       | Exit silently before any input or file access, both surfaces |
+| `CLAUDE_VISOR_NO_TRANSCRIPT=1` | Pure v0 output: no tool/todo lines, no agent tool fragments  |
+| `CLAUDE_VISOR_ASCII=1`         | Plain-text glyphs: `[####----]` bars, `^`/`v` deltas         |
+| `NO_COLOR`                     | No color escapes; layout and glyphs unchanged                |
 
 ## Development
 
