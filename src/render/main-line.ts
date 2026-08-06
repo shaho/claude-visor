@@ -60,7 +60,7 @@ function rateLimitSegment(
   nowSeconds: number,
   showCountdown: boolean,
 ): string | undefined {
-  if (!window) return undefined;
+  if (typeof window?.used_percentage !== "number") return undefined;
   let segment = `${label} ${Math.round(window.used_percentage)}%`;
   if (window.resets_at !== undefined) {
     const delta = paceDelta(
@@ -106,7 +106,7 @@ function contextSegment(
   const pct = ctx.used_percentage;
   const size = ctx.context_window_size;
   const sizeSuffix = size !== undefined ? dim(`/${humanSize(size)}`) : "";
-  if (pct === null || pct === undefined) {
+  if (typeof pct !== "number") {
     return `${emptyBar(cells)} ${dim("–%")}${sizeSuffix}`;
   }
   const color = thresholdColor(pct);
@@ -124,7 +124,7 @@ function gitSegment(
 
 function costSegment(payload: MainPayload): string | undefined {
   const cost = payload.cost?.total_cost_usd;
-  if (cost === undefined) return undefined;
+  if (typeof cost !== "number") return undefined;
   return dim(`$${cost.toFixed(2)}`);
 }
 
