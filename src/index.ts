@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { gitBranch, type Exec } from "./git.ts";
 import { parsePayload } from "./stdin.ts";
 import { renderMainLine } from "./render/main-line.ts";
@@ -32,12 +33,8 @@ export async function main(deps: Deps): Promise<string> {
 }
 
 if (import.meta.main) {
-  const exec: Exec = (file, args) =>
-    new Promise((resolve, reject) => {
-      execFile(file, args, (err, stdout) =>
-        err ? reject(err) : resolve(stdout),
-      );
-    });
+  const exec: Exec = async (file, args) =>
+    (await promisify(execFile)(file, args)).stdout;
   const output = await main({
     readStdin: () => new Response(Bun.stdin.stream()).text(),
     env: process.env,
