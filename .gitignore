@@ -75,3 +75,4 @@ reports
 design.md
 proposal
 
+*.bun-build

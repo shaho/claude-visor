@@ -5,6 +5,7 @@ import { isSubagentPayload, parsePayload } from "./stdin.ts";
 import { renderAgentRows } from "./render/agent-rows.ts";
 import { renderMainLine } from "./render/main-line.ts";
 import { makeStyle } from "./render/style.ts";
+import { VERSION } from "./version.ts";
 
 export interface Deps {
   readStdin: () => Promise<string>;
@@ -37,14 +38,23 @@ export async function main(deps: Deps): Promise<string> {
 }
 
 if (import.meta.main) {
+  if (process.argv.includes("--version")) {
+    console.log(VERSION);
+    process.exit(0);
+  }
   const exec: Exec = async (file, args) =>
     (await promisify(execFile)(file, args)).stdout;
-  const output = await main({
+  // --bytecode compiles to CJS, where top-level await is unavailable.
+  main({
     readStdin: () => new Response(Bun.stdin.stream()).text(),
     env: process.env,
     exec,
     now: () => new Date(),
-  });
-  if (output) console.log(output);
-  process.exit(0);
+  }).then(
+    (output) => {
+      if (output) console.log(output);
+      process.exit(0);
+    },
+    () => process.exit(0),
+  );
 }

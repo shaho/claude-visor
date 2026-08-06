@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "bash scripts/build.sh"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
