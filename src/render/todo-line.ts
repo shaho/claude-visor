@@ -1,5 +1,6 @@
 import type { TodoState } from "../todos.ts";
-import { palette, visibleLength, type Style } from "./style.ts";
+import { defaultTheme, type ResolvedTheme } from "../theme.ts";
+import { visibleLength, type Style } from "./style.ts";
 
 const CELLS = 5;
 
@@ -9,12 +10,15 @@ export function renderTodoLine(
   todos: TodoState,
   columns: number,
   style: Style,
+  theme: ResolvedTheme = defaultTheme(),
 ): string | undefined {
   if (todos.total === 0 || todos.done === todos.total) return undefined;
   const g = style.glyphs;
   const filled = Math.round((todos.done / todos.total) * CELLS);
+  const progressFg =
+    theme.segments.todo.find((s) => s.name === "progress")?.fg ?? null;
   const mini =
-    (filled > 0 ? style.fg(palette.green, g.filled.repeat(filled)) : "") +
+    (filled > 0 ? style.paint(progressFg, g.filled.repeat(filled)) : "") +
     (filled < CELLS ? style.dim(g.empty.repeat(CELLS - filled)) : "");
   const prefix = `${mini} ${style.dim(`${todos.done}/${todos.total}`)}`;
   const room = columns - visibleLength(prefix) - 1;
