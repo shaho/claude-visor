@@ -76,5 +76,6 @@ docs
 reports
 design.md
 proposal
+.codegraph
 
 *.bun-build
