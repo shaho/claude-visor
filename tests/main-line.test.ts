@@ -5,6 +5,9 @@ import { sessionColor } from "../src/session-color.ts";
 import type { MainPayload } from "../src/stdin.ts";
 import { bar, emptyBar } from "../src/render/bar.ts";
 import { makeStyle, palette } from "../src/render/style.ts";
+import { defaultTheme } from "../src/theme.ts";
+
+const ctxSeg = defaultTheme().segments.main.find((s) => s.name === "context")!;
 
 const fixture = (name: string) =>
   Bun.file(new URL(`fixtures/${name}.json`, import.meta.url)).text();
@@ -33,7 +36,7 @@ describe("main line end to end", () => {
       st.bold(st.fg(sessionColor("abc123", ""), "Fable 5")) +
       st.dim(" high") +
       st.sep +
-      `${bar(43, 8, st)} ${st.fg(palette.green, "43%")}${st.dim("/200k")}`;
+      `${bar(43, 8, st, ctxSeg)} ${st.fg(palette.green, "43%")}${st.dim("/200k")}`;
     expect(out).toBe(expected);
   });
 
@@ -47,7 +50,7 @@ describe("main line end to end", () => {
 
   test("wide terminal grows the bar to 14 cells", async () => {
     const out = await main(deps(await fixture("main-43"), { COLUMNS: "120" }));
-    expect(out).toContain(bar(43, 14, st));
+    expect(out).toContain(bar(43, 14, st, ctxSeg));
   });
 
   test("null used_percentage renders empty bar and –%", async () => {

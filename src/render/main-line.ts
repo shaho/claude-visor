@@ -5,15 +5,16 @@ import {
   paceDelta,
   SEVEN_DAY_SECONDS,
 } from "../pace.ts";
-import { sessionColor } from "../session-color.ts";
+import { defaultTheme, type ResolvedTheme, type SegmentTheme } from "../theme.ts";
 import { bar, emptyBar, thresholdColor } from "./bar.ts";
-import { palette, visibleLength, type Style } from "./style.ts";
+import { visibleLength, type Style } from "./style.ts";
 
 const MIN_BAR_CELLS = 4;
 
-// §4.1 degradation ladder: shrink the context bar first (min 4 cells), then
-// drop repo name → cost → 7d → git. A line that still overflows after all of
-// that loses trailing segments — it never wraps.
+// §4.1 degradation ladder, theme-generalized: shrink the context bar first
+// (min 4 cells), then drop the repo name, then whole segments lowest
+// `priority` first. The default theme's priorities encode today's ladder
+// (repo → cost → 7d → git), so no config renders byte-identically.
 export function renderMainLine(
   payload: MainPayload,
   columns: number,
@@ -21,56 +22,56 @@ export function renderMainLine(
   branch: string | undefined,
   style: Style,
   updateAvailable = false,
+  theme: ResolvedTheme = defaultTheme(),
 ): string {
   const nowSeconds = Math.floor(now.getTime() / 1000);
   const maxCells = columns >= 120 ? 14 : 8;
 
+  type SegmentFn = (seg: SegmentTheme, cells: number, dropRepo: boolean) => string | undefined;
+  const RENDERERS: Record<string, SegmentFn> = {
+    model: (seg) => modelSegment(payload, style, updateAvailable, seg),
+    context: (seg, cells) => contextSegment(payload, cells, style, seg),
+    pace5h: (seg) =>
+      rateLimitSegment("5h", payload.rate_limits?.five_hour, FIVE_HOUR_SECONDS, nowSeconds, true, style, seg),
+    pace7d: (seg) =>
+      rateLimitSegment("7d", payload.rate_limits?.seven_day, SEVEN_DAY_SECONDS, nowSeconds, false, style, seg),
+    git: (seg, _cells, dropRepo) => gitSegment(payload, branch, dropRepo, style, seg),
+    cost: (seg) => costSegment(payload, style, seg),
+  };
+
+  const active = theme.segments.main.filter((s) => s.enabled && RENDERERS[s.name]);
+
   // Segment isolation: one failing segment drops out, the rest still print —
   // the platform blanks the whole line on a crash, so never let one escape.
-  const build = (cells: number, drops: number): string[] =>
-    [
-      guarded(() => modelSegment(payload, style, updateAvailable)),
-      guarded(() => contextSegment(payload, cells, style)),
-      guarded(() =>
-        rateLimitSegment(
-          "5h",
-          payload.rate_limits?.five_hour,
-          FIVE_HOUR_SECONDS,
-          nowSeconds,
-          true,
-          style,
-        ),
-      ),
-      drops >= 3
-        ? undefined
-        : guarded(() =>
-            rateLimitSegment(
-              "7d",
-              payload.rate_limits?.seven_day,
-              SEVEN_DAY_SECONDS,
-              nowSeconds,
-              false,
-              style,
-            ),
-          ),
-      drops >= 4
-        ? undefined
-        : guarded(() => gitSegment(payload, branch, drops >= 1, style)),
-      drops >= 2 ? undefined : guarded(() => costSegment(payload, style)),
-    ].filter((s): s is string => s !== undefined);
+  const build = (segs: SegmentTheme[], cells: number, dropRepo: boolean): string[] =>
+    segs
+      .map((seg) =>
+        guarded(() => {
+          const text = RENDERERS[seg.name]!(seg, cells, dropRepo);
+          return text !== undefined ? withIcon(text, seg, style) : undefined;
+        }),
+      )
+      .filter((s): s is string => s !== undefined);
 
   const fits = (segs: string[]) =>
     visibleLength(segs.join(style.sep)) <= columns;
 
   for (let cells = maxCells; cells >= MIN_BAR_CELLS; cells--) {
-    const segs = build(cells, 0);
+    const segs = build(active, cells, false);
     if (fits(segs)) return segs.join(style.sep);
   }
-  for (let drops = 1; drops <= 4; drops++) {
-    const segs = build(MIN_BAR_CELLS, drops);
+  let kept = active;
+  {
+    const segs = build(kept, MIN_BAR_CELLS, true);
     if (fits(segs)) return segs.join(style.sep);
   }
-  const segs = build(MIN_BAR_CELLS, 4);
+  while (kept.length > 1) {
+    const lowest = kept.reduce((a, b) => (b.priority < a.priority ? b : a));
+    kept = kept.filter((s) => s !== lowest);
+    const segs = build(kept, MIN_BAR_CELLS, true);
+    if (fits(segs)) return segs.join(style.sep);
+  }
+  const segs = build(kept, MIN_BAR_CELLS, true);
   while (segs.length > 0 && !fits(segs)) segs.pop();
   return segs.join(style.sep);
 }
@@ -83,6 +84,11 @@ function guarded(segment: () => string | undefined): string | undefined {
   }
 }
 
+function withIcon(text: string, seg: SegmentTheme, style: Style): string {
+  if (!seg.icon) return text;
+  return `${style.nerdIcons ? seg.icon.nerd : seg.icon.plain} ${text}`;
+}
+
 function rateLimitSegment(
   label: string,
   window: RateLimitWindow | undefined,
@@ -90,6 +96,7 @@ function rateLimitSegment(
   nowSeconds: number,
   showCountdown: boolean,
   style: Style,
+  seg: SegmentTheme,
 ): string | undefined {
   if (typeof window?.used_percentage !== "number") return undefined;
   let segment = `${label} ${Math.round(window.used_percentage)}%`;
@@ -100,7 +107,7 @@ function rateLimitSegment(
       windowSeconds,
       nowSeconds,
     );
-    segment += ` ${formatDelta(delta, style)}`;
+    segment += ` ${formatDelta(delta, style, seg)}`;
     if (showCountdown)
       segment += style.dim(
         ` ${style.glyphs.reset}${countdown(window.resets_at, nowSeconds)}`,
@@ -109,25 +116,26 @@ function rateLimitSegment(
   return segment;
 }
 
-function formatDelta(delta: number, style: Style): string {
+// Burning faster than the window refills = the segment's critical color;
+// under pace = ok. (Today's red/green via the default theme slots.)
+function formatDelta(delta: number, style: Style, seg: SegmentTheme): string {
   return delta > 0
-    ? style.fg(palette.red, `${style.glyphs.up}${delta}%`)
-    : style.fg(palette.green, `${style.glyphs.down}${Math.abs(delta)}%`);
+    ? style.paint(seg.critical, `${style.glyphs.up}${delta}%`)
+    : style.paint(seg.ok, `${style.glyphs.down}${Math.abs(delta)}%`);
 }
 
 function modelSegment(
   payload: MainPayload,
   style: Style,
   updateAvailable: boolean,
+  seg: SegmentTheme,
 ): string | undefined {
   const name = payload.model?.display_name;
   if (!name) return undefined;
-  const color = payload.session_id
-    ? sessionColor(payload.session_id, payload.workspace?.git_worktree ?? "")
-    : palette.model;
+  const painted = style.paint(seg.fg, name);
   const effort = payload.effort?.level;
   return (
-    style.bold(style.fg(color, name)) +
+    (seg.bold === false ? painted : style.bold(painted)) +
     (effort ? style.dim(` ${effort}`) : "") +
     (payload.thinking?.enabled ? ` ${style.glyphs.thinking}` : "") +
     (updateAvailable ? ` ${style.dim(style.glyphs.update)}` : "")
@@ -138,6 +146,7 @@ function contextSegment(
   payload: MainPayload,
   cells: number,
   style: Style,
+  seg: SegmentTheme,
 ): string | undefined {
   const ctx = payload.context_window;
   if (!ctx) return undefined;
@@ -148,8 +157,8 @@ function contextSegment(
   if (typeof pct !== "number") {
     return `${emptyBar(cells, style)} ${style.dim(style.glyphs.noPct)}${sizeSuffix}`;
   }
-  const pctText = style.fg(thresholdColor(pct), `${Math.round(pct)}%`);
-  return `${bar(pct, cells, style)} ${pctText}${sizeSuffix}`;
+  const pctText = style.paint(thresholdColor(pct, seg), `${Math.round(pct)}%`);
+  return `${bar(pct, cells, style, seg)} ${pctText}${sizeSuffix}`;
 }
 
 function gitSegment(
@@ -157,18 +166,23 @@ function gitSegment(
   branch: string | undefined,
   dropRepo: boolean,
   style: Style,
+  seg: SegmentTheme,
 ): string | undefined {
   if (!branch) return undefined;
   const repo = dropRepo ? undefined : payload.workspace?.repo?.name;
-  return style.dim(
-    `${style.glyphs.branch} ${branch}${repo ? ` ${repo}` : ""}`,
-  );
+  const text = `${style.glyphs.branch} ${branch}${repo ? ` ${repo}` : ""}`;
+  return seg.fg ? style.paint(seg.fg, text) : style.dim(text);
 }
 
-function costSegment(payload: MainPayload, style: Style): string | undefined {
+function costSegment(
+  payload: MainPayload,
+  style: Style,
+  seg: SegmentTheme,
+): string | undefined {
   const cost = payload.cost?.total_cost_usd;
   if (typeof cost !== "number") return undefined;
-  return style.dim(`$${cost.toFixed(2)}`);
+  const text = `$${cost.toFixed(2)}`;
+  return seg.fg ? style.paint(seg.fg, text) : style.dim(text);
 }
 
 function humanSize(tokens: number): string {

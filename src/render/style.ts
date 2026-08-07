@@ -1,3 +1,5 @@
+import type { ResolvedTheme, ThemeColor } from "../theme.ts";
+
 const ESC = "\x1b[";
 
 export type Rgb = readonly [number, number, number];
@@ -83,16 +85,26 @@ const ASCII: Glyphs = {
 
 export interface Style {
   fg(color: Rgb, s: string): string;
+  // Theme-aware painting: null/undefined = leave the text undecorated;
+  // sessionTint resolves to the tint this style was built with.
+  paint(color: ThemeColor | null | undefined, s: string): string;
   bold(s: string): string;
   dim(s: string): string;
   sep: string;
   glyphs: Glyphs;
+  nerdIcons: boolean; // charset picks the plain or nerd icon variant
 }
 
 type Depth = "none" | "16" | "256" | "truecolor";
 
-export function makeStyle(env: Record<string, string | undefined>): Style {
-  const glyphs = env["CLAUDE_VISOR_ASCII"] === "1" ? ASCII : NERD;
+export function makeStyle(
+  env: Record<string, string | undefined>,
+  opts?: { theme?: ResolvedTheme; tint?: Rgb },
+): Style {
+  const charset = opts?.theme?.charset ?? "unicode";
+  const ascii = env["CLAUDE_VISOR_ASCII"] === "1" || charset === "ascii";
+  const glyphs: Glyphs = { ...(ascii ? ASCII : NERD), ...opts?.theme?.glyphs };
+  const tint = opts?.tint ?? palette.model;
   const depth: Depth = env["NO_COLOR"]
     ? "none"
     : /^(truecolor|24bit)$/i.test(env["COLORTERM"] ?? "")
@@ -102,12 +114,27 @@ export function makeStyle(env: Record<string, string | undefined>): Style {
         : "16";
   const sgr = (code: string, s: string) =>
     s === "" || depth === "none" ? s : `${ESC}${code}m${s}${ESC}0m`;
+  const fg = (color: Rgb, s: string) => sgr(fgCode(color, depth), s);
   return {
-    fg: (color, s) => sgr(fgCode(color, depth), s),
+    fg,
+    paint: (color, s) => {
+      if (color === null || color === undefined) return s;
+      switch (color.kind) {
+        case "rgb":
+          return fg(color.rgb, s);
+        case "sessionTint":
+          return fg(tint, s);
+        case "ansi16":
+          return sgr(String(color.code), s);
+        case "ansi256":
+          return sgr(`38;5;${color.index}`, s);
+      }
+    },
     bold: (s) => sgr("1", s),
     dim: (s) => sgr("2", s),
     sep: sgr("2", glyphs.sep),
     glyphs,
+    nerdIcons: charset === "nerd_font",
   };
 }
 

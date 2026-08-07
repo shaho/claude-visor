@@ -81,7 +81,7 @@ const DISPLAY_ORDER: Record<Surface, string[]> = {
   agents: ["status", "name", "model", "gauge", "tokens", "elapsed", "tool"],
 };
 
-function defaultTheme(): ResolvedTheme {
+export function defaultTheme(): ResolvedTheme {
   const segments = {} as Record<Surface, SegmentTheme[]>;
   for (const surface of Object.keys(SEGMENT_DEFAULTS) as Surface[]) {
     const byName = new Map(

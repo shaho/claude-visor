@@ -7,7 +7,9 @@ import { renderAgentRows } from "./render/agent-rows.ts";
 import { renderMainLine } from "./render/main-line.ts";
 import { renderToolLine } from "./render/tool-line.ts";
 import { renderTodoLine } from "./render/todo-line.ts";
-import { makeStyle } from "./render/style.ts";
+import { makeStyle, palette } from "./render/style.ts";
+import { sessionColor } from "./session-color.ts";
+import { defaultTheme, resolveTheme } from "./theme.ts";
 import { readTodos, type TodoFs } from "./todos.ts";
 import { agentCurrentTool, turnTools, type FsLike } from "./transcript.ts";
 import { VERSION } from "./version.ts";
@@ -31,7 +33,19 @@ export async function main(deps: Deps): Promise<string> {
   }
   const payload = parsePayload(raw);
   const now = deps.now ? deps.now() : new Date();
-  const style = makeStyle(deps.env);
+  // Theme resolution never throws and falls back per-field; render-path
+  // warnings are ignored here (doctor and `check` surface them).
+  const projectDir = isSubagentPayload(payload)
+    ? undefined
+    : payload.workspace?.current_dir;
+  const theme = deps.fs
+    ? resolveTheme({ fs: deps.fs, env: deps.env, projectDir }).theme
+    : defaultTheme();
+  const tint =
+    !isSubagentPayload(payload) && payload.session_id
+      ? sessionColor(payload.session_id, payload.workspace?.git_worktree ?? "")
+      : palette.model;
+  const style = makeStyle(deps.env, { theme, tint });
   try {
     if (isSubagentPayload(payload)) {
       const fs = deps.fs;
@@ -46,7 +60,7 @@ export async function main(deps: Deps): Promise<string> {
           ? (id: string) =>
               agentCurrentTool(fs, `${sidecarDir}/agent-${id}.jsonl`)
           : undefined;
-      return renderAgentRows(payload, style, now, agentTool);
+      return renderAgentRows(payload, style, now, agentTool, theme);
     }
     const branch = deps.exec
       ? await gitBranch(deps.exec, payload.workspace?.current_dir)
@@ -59,7 +73,7 @@ export async function main(deps: Deps): Promise<string> {
     const updateAvailable =
       deps.fileExists?.(`${dataDir}/update-available`) ?? false;
     const lines = [
-      renderMainLine(payload, columns, now, branch, style, updateAvailable),
+      renderMainLine(payload, columns, now, branch, style, updateAvailable, theme),
     ];
     // v2 lines are strictly additive: the kill switch is checked before any
     // transcript I/O, and any failure leaves line 1 exactly as v0 rendered it.
@@ -68,7 +82,8 @@ export async function main(deps: Deps): Promise<string> {
         const activity = payload.transcript_path
           ? turnTools(deps.fs, payload.transcript_path)
           : null;
-        const toolLine = activity && renderToolLine(activity, columns, style);
+        const toolLine =
+          activity && renderToolLine(activity, columns, style, theme);
         if (toolLine) lines.push(toolLine);
       } catch {
         // silent degradation — never touch line 1
@@ -81,7 +96,8 @@ export async function main(deps: Deps): Promise<string> {
                 `${deps.env["HOME"]}/.claude/tasks/${payload.session_id}`,
               )
             : null;
-        const todoLine = todos && renderTodoLine(todos, columns, style);
+        const todoLine =
+          todos && renderTodoLine(todos, columns, style, theme);
         if (todoLine) lines.push(todoLine);
       } catch {
         // silent degradation — never touch the lines above
