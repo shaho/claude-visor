@@ -73,7 +73,7 @@ function row(
   if (tool) {
     const g = style.glyphs;
     const fragment =
-      style.paint(agentSeg("tool")?.fg ?? null, g.running) +
+      style.paint(agentSeg("tool")?.fg, g.running) +
       ` ${style.bold(tool.name)}` +
       (tool.label ? style.dim(` ${tool.label}`) : "");
     const full =
@@ -108,8 +108,8 @@ function build(
   theme: ResolvedTheme,
 ): string {
   const model = parts.model ? shortModel(task.model) : undefined;
-  const statusSeg = theme.segments.agents.find((s) => s.name === "status");
-  const gaugeSeg = theme.segments.agents.find((s) => s.name === "gauge");
+  const statusSeg = theme.segments.agents.find((s) => s.name === "status")!;
+  const gaugeSeg = theme.segments.agents.find((s) => s.name === "gauge")!;
   const head =
     statusGlyph(task.status, style, statusSeg) +
     (name ? ` ${style.bold(name)}` : "") +
@@ -126,13 +126,13 @@ function build(
 function statusGlyph(
   status: string | undefined,
   style: Style,
-  seg: SegmentTheme | undefined,
+  seg: SegmentTheme,
 ): string {
   const g = style.glyphs;
   const known: Record<string, string> = {
-    running: style.paint(seg?.warn ?? null, g.running),
-    completed: style.paint(seg?.ok ?? null, g.completed),
-    failed: style.paint(seg?.critical ?? null, g.failed),
+    running: style.paint(seg.warn, g.running),
+    completed: style.paint(seg.ok, g.completed),
+    failed: style.paint(seg.critical, g.failed),
     pending: style.dim(g.pending),
     queued: style.dim(g.pending),
     paused: style.dim(g.paused),
@@ -141,21 +141,16 @@ function statusGlyph(
   return known[status ?? ""] ?? style.dim(status ?? "?");
 }
 
-function gauge(
-  task: AgentTask,
-  style: Style,
-  seg: SegmentTheme | undefined,
-): string {
+function gauge(task: AgentTask, style: Style, seg: SegmentTheme): string {
   const size = task.contextWindowSize;
   const tokens = task.tokenCount;
   if (typeof size !== "number" || size <= 0 || typeof tokens !== "number") {
     const dashes = style.glyphs.naDash.repeat(ROW_BAR_CELLS);
     return `${style.dim(dashes)} ${style.dim("n/a")}`;
   }
-  const themeSeg = seg ?? defaultTheme().segments.agents.find((s) => s.name === "gauge")!;
   const pct = (tokens / size) * 100;
-  const pctText = style.paint(thresholdColor(pct, themeSeg), `${Math.round(pct)}%`);
-  return `${bar(pct, ROW_BAR_CELLS, style, themeSeg)} ${pctText}`;
+  const pctText = style.paint(thresholdColor(pct, seg), `${Math.round(pct)}%`);
+  return `${bar(pct, ROW_BAR_CELLS, style, seg)} ${pctText}`;
 }
 
 function shortModel(model: string | undefined): string | undefined {

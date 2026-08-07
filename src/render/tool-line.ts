@@ -40,7 +40,7 @@ function build(
 ): string {
   const g = style.glyphs;
   const fgOf = (name: string) =>
-    theme.segments.tools.find((s) => s.name === name)?.fg ?? null;
+    theme.segments.tools.find((s) => s.name === name)?.fg;
   const segments = [
     ...running.map((t) => {
       const label = clip(t.label, maxLabel, g.ellipsis);
