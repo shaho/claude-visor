@@ -98,4 +98,34 @@ else
   fi
 fi
 
+# 8. Theme config (non-fatal — per-field fallback means a broken theme can
+# only restyle, never blank; doctor stays healthy and reports the warnings)
+THEME_WARNINGS=""
+check_theme_file() {
+  [ -f "$1" ] || return 0
+  W="$("$BIN" check "$1" 2>&1)"
+  if [ -n "$W" ]; then
+    THEME_WARNINGS="${THEME_WARNINGS}${W}
+"
+  else
+    ok "theme config $1 is clean"
+  fi
+}
+check_theme_file "$HOME/.claude/claude-visor/config.json"
+check_theme_file ".claude/claude-visor.json"
+if [ -n "${CLAUDE_VISOR_THEME:-}" ]; then
+  if [ "$CLAUDE_VISOR_THEME" = "off" ]; then
+    echo "  – CLAUDE_VISOR_THEME=off: theming disabled by choice"
+  elif "$BIN" theme | grep -qxF "$CLAUDE_VISOR_THEME"; then
+    ok "CLAUDE_VISOR_THEME=$CLAUDE_VISOR_THEME is a known theme"
+  else
+    THEME_WARNINGS="${THEME_WARNINGS}warn: CLAUDE_VISOR_THEME: unknown theme \"$CLAUDE_VISOR_THEME\"; falling back to default
+"
+  fi
+fi
+
 echo "All checks passed — claude-visor is healthy."
+if [ -n "$THEME_WARNINGS" ]; then
+  echo "…but your theme config has issues:"
+  printf '%s' "$THEME_WARNINGS" | sed 's/^/  /'
+fi
