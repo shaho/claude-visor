@@ -106,14 +106,51 @@ There’s no requirement for configuring the agent panel. The plug-in will come 
 with its own default `agentStatusLine` after enabling the plug-in. If you use
 another setting, it will take effect.
 
+## Theming
+
+Everything the HUD draws — colors, glyphs, segment order and visibility, on
+all three surfaces — can be themed from a JSON config. No config means the
+exact default look; a broken config never breaks the line, because every
+invalid field falls back to its default individually.
+
+![The five built-in presets](presets.png)
+
+Five presets ship in the binary: `nord`, `gruvbox`, `tokyo-night`,
+`rose-pine`, and `minimal` (monochrome except the critical state). Pick one
+by writing the global config:
+
+```json
+// ~/.claude/claude-visor/config.json
+{ "theme": "nord" }
+```
+
+Anything else in the file is a sparse override on top of the preset. A
+project-local `.claude/claude-visor.json` merges over the global file, and
+`CLAUDE_VISOR_THEME=<name>` (or `off`) beats both without touching files.
+Own themes go in `~/.claude/claude-visor/themes/<name>.json`; start one with:
+
+```
+claude-visor theme nord > ~/.claude/claude-visor/themes/mine.json
+```
+
+The easiest way in is `/claude-visor:configure` — an interview that edits
+the config for you and uses your live statusline as the preview. To check a
+config by hand, `claude-visor check <file>` prints one `warn:` line per
+field that would be ignored; silence means clean.
+
 ## Commands
 
 - `/claude-visor:setup` sets up the binary and initializes the status line.
+- `/claude-visor:configure` themes the HUD through an interview: pick a base
+  preset, tweak colors/glyphs/segments, watch the live statusline change,
+  keep or revert. Backs up your config before the first change.
 - `/claude-visor:doctor` identifies the reasons behind the blank HUD in this
   sequence: version of Claude Code, version of binary, path of the settings
   file, workspace trust, disableAllHooks, kill switch, and whether the session
   transcript is readable (the source of the tool/todo lines). It states the
-  first issue and how to resolve it.
+  first issue and how to resolve it. Theme configs are checked last and
+  never fail doctor — warnings print verbatim, since a broken theme can only
+  restyle the HUD, not blank it.
 - `/claude-visor:uninstall` deletes the statusLine entry (back it up before
   that) and then informs you to complete it with
   `/plugin uninstall claude-visor`.
@@ -144,6 +181,7 @@ Fable 5 high = | [###----] 43%/200k | 5h 62% ^7% ~2h14m | git main claude-visor 
 | `CLAUDE_VISOR_DISABLE=1`       | Exit silently before any input or file access, both surfaces |
 | `CLAUDE_VISOR_NO_TRANSCRIPT=1` | Pure v0 output: no tool/todo lines, no agent tool fragments  |
 | `CLAUDE_VISOR_ASCII=1`         | Plain-text glyphs: `[####----]` bars, `^`/`v` deltas         |
+| `CLAUDE_VISOR_THEME`           | `off` disables theming; `<name>` forces that theme, no file  |
 | `NO_COLOR`                     | No color escapes; layout and glyphs unchanged                |
 
 ## Development
