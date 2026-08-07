@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkConfig, PRESETS, resolveTheme, type ThemeFs } from "../src/theme.ts";
 
@@ -72,7 +74,7 @@ describe("checkConfig", () => {
 });
 
 describe("check subcommand", () => {
-  const scratch = "/private/tmp/claude-501/-Users-shaho-Desktop-dev-claude-visor/02a15111-9e73-4b44-91c0-c4f1edf25a4c/scratchpad";
+  const scratch = mkdtempSync(join(tmpdir(), "visor-check-"));
 
   test("clean file: silent, exit 0", async () => {
     const path = `${scratch}/clean.json`;
@@ -127,7 +129,7 @@ describe("theme subcommand", () => {
   });
 
   test("bare theme lists built-ins plus user themes", async () => {
-    const scratch = "/private/tmp/claude-501/-Users-shaho-Desktop-dev-claude-visor/02a15111-9e73-4b44-91c0-c4f1edf25a4c/scratchpad/theme-list-home";
+    const scratch = mkdtempSync(join(tmpdir(), "visor-themes-"));
     await Bun.write(`${scratch}/.claude/claude-visor/themes/mine.json`, "{}");
     const { code, stdout } = run(["theme"], { HOME: scratch });
     expect(code).toBe(0);
