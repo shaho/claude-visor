@@ -40,8 +40,9 @@ export interface ThemeFs {
 
 const rgb = (c: Rgb): ThemeColor => ({ kind: "rgb", rgb: c });
 
-// priority = width-pressure survival order (higher survives longer); the
-// defaults encode today's ladder: repo-name → cost → 7d → git drop first.
+// Array order = display order. priority = width-pressure survival order
+// (higher survives longer); the defaults encode today's ladder: repo-name →
+// cost → 7d → git drop first.
 type SegmentDefault = { name: string } & Partial<Omit<SegmentTheme, "name">>;
 
 const SEGMENT_DEFAULTS: Record<Surface, SegmentDefault[]> = {
@@ -49,8 +50,8 @@ const SEGMENT_DEFAULTS: Record<Surface, SegmentDefault[]> = {
     { name: "model", priority: 6, fg: { kind: "sessionTint" }, bold: true },
     { name: "context", priority: 5, ok: rgb(palette.green), warn: rgb(palette.yellow), critical: rgb(palette.red) },
     { name: "pace5h", priority: 4, ok: rgb(palette.green), critical: rgb(palette.red) },
-    { name: "git", priority: 3 },
     { name: "pace7d", priority: 2, ok: rgb(palette.green), critical: rgb(palette.red) },
+    { name: "git", priority: 3 },
     { name: "cost", priority: 1 },
   ],
   tools: [
@@ -72,36 +73,21 @@ const SEGMENT_DEFAULTS: Record<Surface, SegmentDefault[]> = {
   ],
 };
 
-// Display order today equals the declaration order above except the main
-// line, which renders model, context, pace5h, pace7d, git, cost.
-const DISPLAY_ORDER: Record<Surface, string[]> = {
-  main: ["model", "context", "pace5h", "pace7d", "git", "cost"],
-  tools: ["running", "completed"],
-  todo: ["progress", "subject"],
-  agents: ["status", "name", "model", "gauge", "tokens", "elapsed", "tool"],
-};
-
 export function defaultTheme(): ResolvedTheme {
   const segments = {} as Record<Surface, SegmentTheme[]>;
   for (const surface of Object.keys(SEGMENT_DEFAULTS) as Surface[]) {
-    const byName = new Map(
-      SEGMENT_DEFAULTS[surface].map((d) => [d.name, d]),
-    );
-    segments[surface] = DISPLAY_ORDER[surface].map((name) => {
-      const d = byName.get(name)!;
-      return {
-        name,
-        enabled: true,
-        priority: d.priority ?? 0,
-        fg: d.fg ?? null,
-        bg: null,
-        bold: d.bold ?? null,
-        ok: d.ok ?? null,
-        warn: d.warn ?? null,
-        critical: d.critical ?? null,
-        icon: null,
-      };
-    });
+    segments[surface] = SEGMENT_DEFAULTS[surface].map((d) => ({
+      name: d.name,
+      enabled: true,
+      priority: d.priority ?? 0,
+      fg: d.fg ?? null,
+      bg: null,
+      bold: d.bold ?? null,
+      ok: d.ok ?? null,
+      warn: d.warn ?? null,
+      critical: d.critical ?? null,
+      icon: null,
+    }));
   }
   return { charset: "unicode", glyphs: {}, segments };
 }

@@ -210,27 +210,16 @@ describe("end to end through main()", () => {
         ),
       env: { COLORTERM: "truecolor", COLUMNS: "80", HOME },
       now: () => NOW,
-      fs: Object.assign(Object.create(null), {
+      // only the theme path reads fs here; the FsLike half is never exercised
+      fs: {
         readFileSync(path: string) {
           if (path in files) return files[path]!;
           const e = new Error("ENOENT") as Error & { code: string };
           e.code = "ENOENT";
           throw e;
         },
-        readdirSync() {
-          return [];
-        },
-        statSync() {
-          throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-        },
-        openSync() {
-          throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-        },
-        readSync() {
-          return 0;
-        },
-        closeSync() {},
-      }),
+        readdirSync: () => [],
+      } as unknown as Deps["fs"],
     };
     const out = await main(deps);
     expect(out).toContain(st.bold(st.fg(NORD.model, "Fable 5")));

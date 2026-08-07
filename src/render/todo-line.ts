@@ -16,7 +16,7 @@ export function renderTodoLine(
   const g = style.glyphs;
   const filled = Math.round((todos.done / todos.total) * CELLS);
   const progressFg =
-    theme.segments.todo.find((s) => s.name === "progress")?.fg ?? null;
+    theme.segments.todo.find((s) => s.name === "progress")?.fg;
   const mini =
     (filled > 0 ? style.paint(progressFg, g.filled.repeat(filled)) : "") +
     (filled < CELLS ? style.dim(g.empty.repeat(CELLS - filled)) : "");
