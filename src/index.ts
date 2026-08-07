@@ -12,6 +12,7 @@ import { sessionColor } from "./session-color.ts";
 import { defaultTheme, resolveTheme } from "./theme.ts";
 import { readTodos, type TodoFs } from "./todos.ts";
 import { agentCurrentTool, turnTools, type FsLike } from "./transcript.ts";
+import { checkConfig, PRESETS } from "./theme.ts";
 import { VERSION } from "./version.ts";
 
 export interface Deps {
@@ -112,6 +113,43 @@ export async function main(deps: Deps): Promise<string> {
 if (import.meta.main) {
   if (process.argv.includes("--version")) {
     console.log(VERSION);
+    process.exit(0);
+  }
+  const [cmd, arg] = process.argv.slice(2);
+  // §8 subcommands. `check`: warnings are the signal, exit 0 regardless —
+  // config can't hard-fail. Only CLI misuse (no operand, unknown name) exits 1.
+  if (cmd === "check") {
+    if (!arg) {
+      console.error("usage: claude-visor check <config.json>");
+      process.exit(1);
+    }
+    for (const w of checkConfig(nodeFs, arg, process.env["HOME"])) {
+      console.error(`warn: ${w}`);
+    }
+    process.exit(0);
+  }
+  if (cmd === "theme") {
+    if (!arg) {
+      const names = Object.keys(PRESETS);
+      try {
+        const dir = `${process.env["HOME"]}/.claude/claude-visor/themes`;
+        for (const f of nodeFs.readdirSync(dir)) {
+          if (f.endsWith(".json")) names.push(f.slice(0, -5));
+        }
+      } catch {
+        // no user themes dir
+      }
+      console.log(names.join("\n"));
+      process.exit(0);
+    }
+    const preset = PRESETS[arg];
+    if (!preset) {
+      console.error(
+        `unknown theme "${arg}" — built-ins: ${Object.keys(PRESETS).join(", ")}`,
+      );
+      process.exit(1);
+    }
+    console.log(JSON.stringify(preset, null, 2));
     process.exit(0);
   }
   const exec: Exec = async (file, args) =>

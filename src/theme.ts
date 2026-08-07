@@ -300,6 +300,47 @@ function applySegments(
   ];
 }
 
+// Load one config file through the real fallback path and report every field
+// that would be ignored or fallen back — the `check` subcommand and doctor's
+// config check. File problems are warnings too: config can't hard-fail.
+export function checkConfig(
+  fs: ThemeFs,
+  path: string,
+  home?: string,
+): string[] {
+  const warnings: string[] = [];
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch (e) {
+    return (e as { code?: string })?.code === "ENOENT"
+      ? [`${path}: file not found`]
+      : e instanceof SyntaxError
+        ? [`${path}: not valid JSON; ignored`]
+        : [`${path}: unreadable; ignored`];
+  }
+  if (isObject(raw) && raw["theme"] !== undefined) {
+    const name = raw["theme"];
+    if (typeof name !== "string") {
+      warnings.push(`${path}: theme name is not a string; ignored`);
+    } else if (!PRESETS[name]) {
+      let userTheme = false;
+      try {
+        if (home) {
+          fs.readFileSync(`${home}/.claude/claude-visor/themes/${name}.json`, "utf8");
+          userTheme = true;
+        }
+      } catch {
+        // fall through to the warning
+      }
+      if (!userTheme)
+        warnings.push(`${path}: unknown theme "${name}"; falling back to default`);
+    }
+  }
+  applyConfig(defaultTheme(), raw, path, warnings);
+  return warnings;
+}
+
 // ---- resolution ----
 
 interface Layer {
