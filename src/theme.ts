@@ -261,6 +261,10 @@ function applySegments(
       warn(`unknown segment "${entry["name"]}" ignored`);
       continue;
     }
+    if (listed.includes(seg)) {
+      warn(`duplicate segment "${seg.name}" ignored`);
+      continue;
+    }
     for (const key of Object.keys(entry)) {
       if (!SEGMENT_KEYS.has(key))
         warn(`unknown field "${key}" on segment "${seg.name}" ignored`);
@@ -293,11 +297,18 @@ function applySegments(
     }
     listed.push(seg);
   }
-  // Listed order wins; unlisted segments keep their relative order after.
-  theme.segments[surface] = [
-    ...listed,
-    ...current.filter((s) => !listed.includes(s)),
-  ];
+  // Stable reorder: listed segments are reassigned among their existing
+  // positions in listed order; unlisted segments stay exactly where they are.
+  // A sparse color tweak on one segment can therefore never move it — full
+  // reordering is expressed by listing the segments explicitly.
+  const positions = current
+    .map((s, i) => (listed.includes(s) ? i : -1))
+    .filter((i) => i >= 0);
+  const next = [...current];
+  listed.forEach((seg, k) => {
+    next[positions[k]!] = seg;
+  });
+  theme.segments[surface] = next;
 }
 
 // Load one config file through the real fallback path and report every field

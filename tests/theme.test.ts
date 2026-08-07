@@ -294,12 +294,25 @@ describe("layout", () => {
       }),
     });
     expect(warnings).toEqual([]);
-    // listed first in given order, unlisted keep relative default order
+    // stable reorder: listed segments swap among their existing positions
+    // (0, 4, 5 here), unlisted segments stay exactly where they were
     expect(theme.segments.main.map((s) => s.name)).toEqual([
-      "git", "model", "cost", "context", "pace5h", "pace7d",
+      "git", "context", "pace5h", "pace7d", "model", "cost",
     ]);
     expect(seg(theme, "main", "cost").enabled).toBe(false);
     expect(seg(theme, "main", "git").priority).toBe(9);
+  });
+
+  test("a sparse color tweak never moves the segment", () => {
+    const { theme, warnings } = resolve({
+      [GLOBAL]: JSON.stringify({
+        segments: { main: [{ name: "cost", fg: "#ff9e64" }] },
+      }),
+    });
+    expect(warnings).toEqual([]);
+    expect(theme.segments.main.map((s) => s.name)).toEqual([
+      "model", "context", "pace5h", "pace7d", "git", "cost",
+    ]);
   });
 
   test("color value forms: ansi16 names, 256:<n>, sessionTint, explicit null", () => {
