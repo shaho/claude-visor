@@ -165,15 +165,25 @@ describe("cost segment", () => {
 });
 
 describe("thinking glyph", () => {
-  test("☰ appears exactly when thinking is enabled", async () => {
+  test("∴ appears exactly when thinking is enabled", async () => {
     const withThinking = await main(
       deps(await fixture("main-full"), { COLUMNS: "80" }),
     );
-    expect(withThinking).toContain("☰");
+    expect(withThinking).toContain("∴");
     const without = await main(
       deps(await fixture("main-43"), { COLUMNS: "80" }),
     );
-    expect(without).not.toContain("☰");
+    expect(without).not.toContain("∴");
+  });
+
+  // A glyph Claude Code measures wider than the terminal draws it shifts every
+  // later cell on redraw (split bars, stale digits) — keep them all 1 cell.
+  test("every default glyph is one cell per code point", () => {
+    for (const env of [{}, { CLAUDE_VISOR_ASCII: "1" }]) {
+      for (const [name, g] of Object.entries(makeStyle(env).glyphs)) {
+        expect([name, Bun.stringWidth(g)]).toEqual([name, [...g].length]);
+      }
+    }
   });
 });
 

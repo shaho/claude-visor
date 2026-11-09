@@ -44,7 +44,7 @@ const NERD: Glyphs = {
   down: "⇣",
   reset: "⟳",
   branch: "",
-  thinking: "☰",
+  thinking: "∴", // not ☰: Unicode 16 made it wide, Claude Code counts 2 cells, terminals draw 1
   sep: " │ ",
   noPct: "empty",
   running: "◐",

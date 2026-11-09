@@ -11,14 +11,14 @@ never uses the network for rendering, and anything it can't read it simply
 leaves out.
 
 ```
-Fable 5 high ☰ │ ███░░░░░ 43%/200k │ 5h 62% ⇡9% ⟳2h14m │ 7d 31% ⇣12% │ main claude-visor │ $4.12
+Fable 5 high ∴ │ ███░░░░░ 43%/200k │ 5h 62% ⇡9% ⟳2h14m │ 7d 31% ⇣12% │ main claude-visor │ $4.12
 ```
 
 ## The main line
 
 One dense line, in segments:
 
-- Model name and reasoning effort, with ☰ if extended reasoning is enabled. The
+- Model name and reasoning effort, with ∴ if extended reasoning is enabled. The
   model name uses color that is a tint of the session id and worktree, which
   makes it easy to distinguish parallel terminals from each other.
 - Context bar: green below 70% usage, yellow up to 85%, and red if it is over.

@@ -40,7 +40,7 @@ describe("width ladder", () => {
     const text = strip(
       await render({ COLUMNS: "120", COLORTERM: "truecolor" }),
     );
-    for (const piece of ["Fable 5", "☰", "43%", "5h 62%", "7d 31%", "main", "claude-visor", "$4.12"]) {
+    for (const piece of ["Fable 5", "∴", "43%", "5h 62%", "7d 31%", "main", "claude-visor", "$4.12"]) {
       expect(text).toContain(piece);
     }
   });
@@ -107,7 +107,7 @@ describe("color ladder", () => {
     expect(plain).not.toContain("\x1b");
     expect(plain).toBe(strip(colored));
     expect(plain).toContain("░");
-    expect(plain).toContain("☰");
+    expect(plain).toContain("∴");
   });
 });
 
