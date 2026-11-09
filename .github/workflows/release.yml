@@ -11,7 +11,7 @@ jobs:
   release:
     # Darwin targets must be built and codesigned on macOS (spec §6); the
     # linux musl target cross-compiles from the same runner.
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
